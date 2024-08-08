@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.3.0/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.3.0/dist/MarkerCluster.Default.css" />
+    <title>Leaflet Filtering</title>
+    <style>
+        #map{
+            height: 100vh;
+            width: 100%;
+        }
+        .info {
+            padding: 6px 8px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: white;
+            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        .info h4 {
+            margin: 0 0 5px;
+            color: #777;
+        }
+        .legend {
+            line-height: 18px;
+            color: #555;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+        }
+        #filter {
+            position: absolute;
+            top: 75px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        label, select {
+            display: block;
+            margin-bottom: 10px; /* Adjust spacing as needed */
+        }
+        fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        #filter input[type="radio"] {
+            margin-right: 5px;
+        }
+
+        #filter label {
+            margin-right: 20px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        #forms {
+            position: absolute;
+            top: 220px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        #showCorrelation {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A); /* Gradient background */
+            border: none; /* Remove default border */
+            color: white; /* Text color */
+            padding: 10px 20px; /* Padding inside the button */
+            text-align: center; /* Center the text */
+            text-decoration: none; /* Remove underline */
+            display: inline-block; /* Make button inline-block */
+            font-size: 16px; /* Font size */
+            margin: 10px 2px; /* Margin around the button */
+            cursor: pointer; /* Pointer cursor on hover */
+            border-radius: 5px; /* Rounded corners */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* Shadow effect */
+            transition: background 0.3s ease, box-shadow 0.3s ease; /* Smooth transitions */
+        }
+
+        #showCorrelation:hover {
+            background: linear-gradient(45deg, #45A049, #7CB342); /* Darker gradient on hover */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3); /* Enhanced shadow on hover */
+        }
+
+.popup .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%; /* Set overlay width */
+    height: 100%; /* Set overlay height */
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    display: none; /* Initially hide the overlay */
+}
+
+.popup .content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    width: 850px;
+    height: 90vh;
+    z-index: 1001;
+    text-align: center;
+    box-sizing: border-box;
+    display: none; /* Initially hide the popup */
+}
+.popup .closebutton {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    width: 30px;
+    height: 30px;
+    background: #222;
+    color: #fff;
+    font-size: 25px;
+    font-weight: 600;
+    line-height: 30px;
+    text-align: center;
+    border-radius: 50%;
+    cursor: pointer; /* Change cursor to pointer */
+}
+    </style>
+</head>
+<body>
+
+    <div class="popup" id="popup1">
+        <div class="overlay"></div>
+        <div class="content">
+            <div class="closebutton" onclick="togglePopup()">&times;</div>
+            <h1>Title</h1>
+            <div id="chart-container1"></div>
+            <div id="chart-container2"></div>
+        </div>
+    </div>
+
+
+
+    <div id="filter">
+        <label for="nameFilter">Filter by NAME:</label>
+        <select id="nameFilter">
+            <option value="all">All</option>
+            <!-- Additional options will be populated here -->
+        </select>
+    
+        <fieldset>
+            <legend>Filter by Sensor Type:</legend>
+            <input type="radio" id="typeAll" name="typeFilter" value="all" checked>
+            <label for="typeAll">All</label>
+    
+            <input type="radio" id="typePrecipitation" name="typeFilter" value="Precipitation">
+            <label for="typePrecipitation">Precipitation</label>
+    
+            <input type="radio" id="typeDischarge" name="typeFilter" value="Discharge">
+            <label for="typeDischarge">Discharge</label>
+        </fieldset>
+    </div>
+
+    <div id="forms">
+        <form id="form1">
+            <label for="sensorId1">Discharge Sensor ID:</label>
+            <input type="text" id="sensorId1">
+        </form>
+    
+        <form id="form2">
+            <label for="sensorId2">Precipitation Sensor ID:</label>
+            <input type="text" id="sensorId2">
+        </form>
+        <button id="showCorrelation" onclick="togglePopup()">Show Correlation</button>
+    </div>
+
+
+    
+    
+    
+        
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.3.0/dist/leaflet.markercluster.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://d3js.org/d3-time-format.v3.min.js"></script>
+    <script src="./data/sensors.js"></script>
+    <script src="./data/basin.js"></script>
+    <script>
+        var map = L.map('map').setView([55.801906, -114.119139], 4);
+
+        var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        osm.addTo(map);
+
+        // Function to get color based on feature properties
+        function getColor(d) {
+            return d > 110 ? '#800026' :
+                   d > 100  ? '#BD0026' :
+                   d > 80  ? '#E31A1C' :
+                   d > 50  ? '#FC4E2A' :
+                   d > 40   ? '#FD8D3C' :
+                   d > 20   ? '#FEB24C' :
+                   d > 0   ? '#FED976' :
+                              '#FFEDA0';
+        }
+
+        // Style function for basin GeoJSON features
+        function style(feature) {
+            return {
+                fillColor: 'none', // Remove fill color
+                weight: 2,         // Border weight
+                opacity: 1,        // Border opacity
+                color: getColor(feature.properties.Join_Count), // Border color
+                dashArray: '',
+                fillOpacity: 0     // No fill opacity
+            };
+        }
+
+        // Zoom to feature on double-click
+        function zoomToFeature(e) {
+            map.fitBounds(e.target.getBounds());
+        }
+
+        // Attach event handlers to each basin feature
+        function onEachFeature(feature, layer) {
+            layer.on({
+                dblclick: zoomToFeature // Handle double-click events
+            });
+        }
+
+        // Initialize geoJSON layers
+        var basinLayer = L.geoJSON(basinJSON, {
+            style: style,
+            onEachFeature: onEachFeature
+        }).addTo(map);
+
+        // Create a marker cluster group
+        var markerCluster = L.markerClusterGroup({
+            disableClusteringAtZoom: 11 // Disable clustering at a specific zoom level
+        });
+
+        // Function to get color based on EnvDataType
+        function getSensorColor(envDataType) {
+            return envDataType === 'Precipitation' ? 'red' : 'green';
+        }
+
+        // Define the geoJSON layer for sensors
+        var sensorLayer = L.geoJSON(sensorJSON, {
+            pointToLayer: function (feature, latlng) {
+                var circleColor = getSensorColor(feature.properties.EnvDataType);
+                var circle = L.circleMarker(latlng, {
+                    color: circleColor,
+                    fillColor: circleColor,
+                    fillOpacity: 0.5,
+                    radius: 5
+                });
+
+                // Bind popup to the circle marker
+                circle.bindPopup("<b>Sensor Name:</b> " + feature.properties.SensorName + "<br><b>EnvDataType:</b> " + feature.properties.EnvDataType);
+                
+                // Add the circle marker to the markerCluster
+                markerCluster.addLayer(circle);
+
+                return circle;
+            }
+        });
+
+        // Add the marker cluster group to the map
+        map.addLayer(markerCluster);
+
+        // Populate dropdown with unique NAME values
+        function populateDropdown() {
+            var uniqueNames = new Set();
+            basinJSON.features.forEach(feature => uniqueNames.add(feature.properties.NAME));
+            sensorJSON.features.forEach(feature => uniqueNames.add(feature.properties.NAME));
+
+            var nameFilter = document.getElementById('nameFilter');
+            uniqueNames.forEach(name => {
+                var option = document.createElement('option');
+                option.value = name;
+                option.text = name;
+                nameFilter.appendChild(option);
+            });
+        }
+// Function to filter layers by NAME and zoom to the features
+// Function to filter layers by NAME and sensor type
+function filterLayers(name, type) {
+    if (basinLayer) map.removeLayer(basinLayer);
+    if (markerCluster) map.removeLayer(markerCluster);
+
+    // Create a layer for the basin
+    basinLayer = L.geoJSON(basinJSON, {
+        style: style,
+        filter: function(feature) {
+            return name === 'all' || feature.properties.NAME === name;
+        },
+        onEachFeature: onEachFeature
+    }).addTo(map);
+
+    // Initialize markerCluster
+    markerCluster = L.markerClusterGroup({
+        disableClusteringAtZoom: 8
+    });
+
+    // Create a layer for sensors
+sensorLayer = L.geoJSON(sensorJSON, {
+    pointToLayer: function (feature, latlng) {
+        // Determine the color of the circle based on sensor data type
+        var circleColor = getSensorColor(feature.properties.EnvDataType);
+        
+        // Create a circle marker with specified style
+        var circle = L.circleMarker(latlng, {
+            color: circleColor,
+            fillColor: circleColor,
+            fillOpacity: 0.5,
+            radius: 5
+        });
+
+        // Bind popup to the circle marker
+        circle.bindTooltip(
+            "<b>Sensor Name:</b> " + feature.properties.SensorName +
+            "<br><b>EnvDataType:</b> " + feature.properties.EnvDataType
+        );
+
+        // Check if the feature meets the filter criteria
+        if ((name === 'all' || feature.properties.NAME === name) &&
+            (type === 'all' || feature.properties.EnvDataType === type)) {
+
+            // Add the circle marker to the markerCluster
+            markerCluster.addLayer(circle);
+
+            // Attach click event only if the circle is added to the cluster
+            circle.on('click', function () {
+            // Get the sensor ID from the feature properties
+            var sensorId = feature.properties.SensorID;
+            var envDataType = feature.properties.EnvDataType;
+
+            // Update forms based on the EnvDataType
+            if (envDataType === 'Discharge') {
+                // Update Form 1 with the sensor ID
+                updateForms(sensorId, document.getElementById('sensorId2')?.value || '');
+            } else if (envDataType === 'Precipitation') {
+                // Update Form 2 with the sensor ID
+                updateForms(document.getElementById('sensorId1')?.value || '', sensorId);
+            }
+        });
+        }
+
+        // Return the circle marker
+        return circle;
+    }
+});
+
+// Function to update both forms with the sensor IDs
+function updateForms(sensorId1, sensorId2) {
+    // Ensure that the elements exist before updating
+    const sensorInput1 = document.getElementById('sensorId1');
+    const sensorInput2 = document.getElementById('sensorId2');
+
+    if (sensorInput1) {
+        sensorInput1.value = sensorId1;
+    } else {
+        console.error('Element with id "sensorId1" not found');
+    }
+
+    if (sensorInput2) {
+        sensorInput2.value = sensorId2;
+    } else {
+        console.error('Element with id "sensorId2" not found');
+    }
+}
+    // Add the markerCluster to the map
+    map.addLayer(markerCluster);
+
+    if (name === 'all') {
+        // Set the map view to specific coordinates and zoom level 6 when 'all' is selected
+        map.setView([55.801906, -114.119139], 5);
+    } else {
+        // Calculate the bounds of the filtered features
+        var featureBounds = L.latLngBounds();
+
+        basinLayer.eachLayer(function(layer) {
+            if (name === 'all' || layer.feature.properties.NAME === name) {
+                featureBounds.extend(layer.getBounds());
+            }
+        });
+
+        markerCluster.eachLayer(function(layer) {
+            if ((name === 'all' || layer.feature.properties.NAME === name) &&
+                (type === 'all' || layer.feature.properties.EnvDataType === type)) {
+                featureBounds.extend(layer.getLatLng());
+            }
+        });
+
+        // Check if the featureBounds is valid before zooming
+        if (featureBounds.isValid()) {
+            map.fitBounds(featureBounds);
+        }
+    }
+}
+
+// Event listeners for dropdown changes and radio buttons
+document.getElementById('nameFilter').addEventListener('change', function(e) {
+    filterLayers(e.target.value, document.querySelector('input[name="typeFilter"]:checked').value);
+});
+
+document.querySelectorAll('input[name="typeFilter"]').forEach(function(radio) {
+    radio.addEventListener('change', function(e) {
+        filterLayers(document.getElementById('nameFilter').value, e.target.value);
+    });
+});
+
+// Initial setup
+populateDropdown();
+filterLayers('all', 'all');
+
+
+        // Tile Layers
+        var Esri_NatGeoWorldMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA, iPC',
+            maxZoom: 16
+        }).addTo(map);
+
+        var googleHybrid = L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{
+            maxZoom: 20,
+            subdomains:['mt0','mt1','mt2','mt3']
+        });
+
+        var googleStreets = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{
+            maxZoom: 20,
+            subdomains:['mt0','mt1','mt2','mt3']
+        });
+
+
+
+        // Layer Control
+        var baseLayers = {
+            "Main Base": Esri_NatGeoWorldMap,
+            "Google Hybrid": googleHybrid,
+            "Google Street": googleStreets,
+        };
+
+        var overlays = {
+            "Sensor": markerCluster,
+            "Basin": basinLayer
+        };
+
+        L.control.layers(baseLayers, overlays).addTo(map);
+
+
+        
+
+ function togglePopup() {
+            var overlay = document.querySelector(".popup .overlay");
+            var content = document.querySelector(".popup .content");
+            if (overlay.style.display === "block" && content.style.display === "block") {
+                overlay.style.display = "none";
+                content.style.display = "none";
+            } else {
+                overlay.style.display = "block";
+                content.style.display = "block";
+                updateCharts(); // Update charts when the popup is shown
+            }
+        }
+// Define margins and dimensions
+const marginLeft = 50;
+const marginTop = 20;
+const marginRight = 30;
+const marginBottom = 50;
+const chartWidth = 800 - marginLeft - marginRight;
+const chartHeight = 300 - marginTop - marginBottom;
+
+function createChart(containerId, dataset) {
+    // Clear existing content
+    d3.select(containerId).selectAll("*").remove();
+
+    // Declare the x (horizontal position) scale
+    const x = d3.scaleUtc()
+        .domain(d3.extent(dataset, d => d.date))
+        .range([marginLeft, chartWidth - marginRight]);
+
+    // Declare the y (vertical position) scale
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(dataset, d => d.value)])
+        .range([chartHeight - marginBottom, marginTop]);
+
+    // Declare the line generator
+    const line = d3.line()
+        .x(d => x(d.date))
+        .y(d => y(d.value));
+
+    // Create the SVG container
+    const svg = d3.select(containerId)
+        .append("svg")
+        .attr("width", chartWidth + marginLeft + marginRight)
+        .attr("height", chartHeight + marginTop + marginBottom)
+        .attr("viewBox", `0 0 ${chartWidth + marginLeft + marginRight} ${chartHeight + marginTop + marginBottom}`)
+        .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+
+    // Add the x-axis
+    svg.append("g")
+        .attr("transform", `translate(0,${chartHeight - marginBottom})`)
+        .call(d3.axisBottom(x).ticks(chartWidth / 80).tickSizeOuter(0));
+
+    // Add the y-axis, remove the domain line, add grid lines and a label
+    svg.append("g")
+        .attr("transform", `translate(${marginLeft},0)`)
+        .call(d3.axisLeft(y).ticks(chartHeight / 40))
+        .call(g => g.select(".domain").remove())
+        .call(g => g.selectAll(".tick line").clone()
+            .attr("x2", chartWidth - marginLeft - marginRight)
+            .attr("stroke-opacity", 0.1))
+        .call(g => g.append("text")
+            .attr("x", -marginLeft)
+            .attr("y", 10)
+            .attr("fill", "currentColor")
+            .attr("text-anchor", "start")
+            .text("↑ Value"));
+
+    // Append a path for the line
+    svg.append("path")
+        .datum(dataset)
+        .attr("fill", "none")
+        .attr("stroke", "steelblue")
+        .attr("stroke-width", 1.5)
+        .attr("d", line);
+}
+
+// Function to update both charts
+function updateCharts() {
+    const sensorId1 = document.getElementById("sensorId1").value;
+    const sensorId2 = document.getElementById("sensorId2").value;
+
+    // Filter the data for the sensors
+    const dataSensor1 = data.filter(d => d.SensorID === sensorId1);
+    const dataSensor2 = data.filter(d => d.SensorID === sensorId2);
+
+    console.log("Filtered Data for Sensor 1:", dataSensor1); // Debugging statement
+    console.log("Filtered Data for Sensor 2:", dataSensor2); // Debugging statement
+
+    // Create or update the charts
+    createChart("#chart-container1", dataSensor1);
+    createChart("#chart-container2", dataSensor2);
+}
+
+// Load CSV data and set up event listener for button click
+d3.csv("./data/SensorData.csv").then(data => {
+    console.log("CSV Data Loaded:", data); // Debugging statement
+
+    // Define the date format used in your CSV
+    const parseDate = d3.timeParse("%m/%d/%Y %I:%M:%S %p"); // Adjust format as needed
+
+    // Parse the date and value
+    data.forEach(d => {
+        d.date = parseDate(d.DateTime); // Use the correct date field name
+        d.value = +d.Value; // Convert the value to a number
+    });
+
+    // Function to update charts based on input values
+    function updateCharts() {
+        const sensorId1 = document.getElementById("sensorId1").value;
+        const sensorId2 = document.getElementById("sensorId2").value;
+
+        // Filter the data for the sensors
+        const dataSensor1 = data.filter(d => d.SensorID === sensorId1);
+        const dataSensor2 = data.filter(d => d.SensorID === sensorId2);
+
+        console.log("Filtered Data for Sensor 1:", dataSensor1); // Debugging statement
+        console.log("Filtered Data for Sensor 2:", dataSensor2); // Debugging statement
+
+        // Create or update the charts
+        createChart("#chart-container1", dataSensor1);
+        createChart("#chart-container2", dataSensor2);
+    }
+
+    // Set up event listener for button click
+    document.getElementById("showCorrelation").addEventListener("click", updateCharts);
+});
+
+    </script>
+</body>
+</html>
